@@ -190,6 +190,7 @@ pub fn start<B>(
             .unwrap(),
     );
 
+    // 扫描文件
     active_threads.push(
         thread::Builder::new()
             .name("hd_scanner".to_string())
@@ -236,6 +237,7 @@ pub fn start<B>(
             .unwrap(),
     );
 
+    // 更新界面线程
     if SHOULD_SHOW_LOADING_ANIMATION {
         active_threads.push(
             thread::Builder::new()
@@ -247,6 +249,7 @@ pub fn start<B>(
                         while running.load(Ordering::Acquire) && !loaded.load(Ordering::Acquire) {
                             let _ =
                                 instruction_sender.send(Instruction::ToggleScanningVisualIndicator);
+                            // 界面更新入口
                             let _ = instruction_sender.send(Instruction::RenderAndUpdateBoard);
                             park_timeout(time::Duration::from_millis(100));
                         }
@@ -264,6 +267,7 @@ pub fn start<B>(
         disable_delete_confirmation,
     );
     app.start(instruction_receiver);
+    eprintln!("abc~~~");
     running.store(false, Ordering::Release);
 
     for thread_handler in active_threads {

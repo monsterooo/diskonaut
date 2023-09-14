@@ -5,6 +5,7 @@ use ::std::path::PathBuf;
 
 use ::filesize::PathExt;
 
+// 文件或目录集合枚举
 #[derive(Debug, Clone)]
 pub enum FileOrFolder {
     Folder(Folder),
@@ -20,20 +21,23 @@ impl FileOrFolder {
     }
 }
 
+// 文件结构
 #[derive(Debug, Clone)]
 pub struct File {
-    pub name: OsString,
-    pub size: u128,
+    pub name: OsString, // 文件名称
+    pub size: u128, // 文件大小
 }
 
+// 目录结构
 #[derive(Debug, Clone)]
 pub struct Folder {
-    pub name: OsString,
-    pub contents: HashMap<OsString, FileOrFolder>,
-    pub size: u128,
-    pub num_descendants: u64,
+    pub name: OsString, // 目录名称
+    pub contents: HashMap<OsString, FileOrFolder>, // 目录内容
+    pub size: u128, // 目录大小
+    pub num_descendants: u64, // 内容数量
 }
 
+// OsString 转 Folder 方法
 impl From<OsString> for Folder {
     fn from(name: OsString) -> Self {
         Folder {
@@ -46,6 +50,7 @@ impl From<OsString> for Folder {
 }
 impl Folder {
     pub fn new(path: &PathBuf) -> Self {
+        // 拿到目录名称
         let base_folder_name = path.iter().last().expect("could not get path base name");
         Self {
             name: base_folder_name.to_os_string(),
@@ -55,6 +60,7 @@ impl Folder {
         }
     }
 
+    // 添加目录或文件到当前目录下
     pub fn add_entry(
         &mut self,
         entry_metadata: &Metadata,
@@ -64,9 +70,11 @@ impl Folder {
         // apparent_size (named after the flag of the same name in 'du')
         // means "show the file size, rather than the actual space it takes on disk"
         // these may differ (for example) in filesystems that use compression
+        // 添加目录
         if entry_metadata.is_dir() {
             self.add_folder(relative_path);
         } else {
+            // 添加文件
             let size = if show_apparent_size {
                 entry_metadata.len() as u128
             } else {
@@ -78,7 +86,9 @@ impl Folder {
         }
     }
 
+    // 添加目录
     pub fn add_folder(&mut self, path: PathBuf) {
+        // 获取路径长度 /a/b => 2
         let path_length = path.components().count();
         if path_length == 0 {
             return;
