@@ -77,11 +77,14 @@ fn try_main() -> Result<(), failure::Error> {
         Ok(stdout) => {
             enable_raw_mode()?;
             let terminal_backend = CrosstermBackend::new(stdout);
+            // 读取终端的数据
             let terminal_events = TerminalEvents {};
+            // 获取扫描的目录，如果未传递则使用当前目录
             let folder = match opts.folder {
                 Some(folder) => folder,
                 None => env::current_dir()?,
             };
+            // 如果不是目录则退出程序
             if !folder.as_path().is_dir() {
                 failure::bail!("Folder '{}' does not exist", folder.to_string_lossy())
             }
@@ -110,8 +113,10 @@ pub fn start<B>(
 {
     let mut active_threads = vec![];
 
+    // 时间同时只处理一个
     let (event_sender, event_receiver): (SyncSender<Event>, Receiver<Event>) =
         mpsc::sync_channel(1);
+    // 指令同时最多处理100个
     let (instruction_sender, instruction_receiver): (
         SyncSender<Instruction>,
         Receiver<Instruction>,
@@ -120,6 +125,7 @@ pub fn start<B>(
     let running = Arc::new(AtomicBool::new(true));
     let loaded = Arc::new(AtomicBool::new(false));
 
+    // 主要处理文件删除、退出事件
     active_threads.push(
         thread::Builder::new()
             .name("event_executer".to_string())
@@ -137,7 +143,9 @@ pub fn start<B>(
                 let instruction_sender = instruction_sender.clone();
                 let running = running.clone();
                 move || {
+                    // 阻塞线程，读取终端输入数据
                     for evt in terminal_events {
+                        // 移动大小
                         if let BackEvent::Resize(_x, _y) = evt {
                             if SHOULD_HANDLE_WIN_CHANGE {
                                 let _ = instruction_sender.send(Instruction::ResetUiMode);
@@ -145,7 +153,8 @@ pub fn start<B>(
                             }
                             continue;
                         }
-
+                        
+                        // 按下 y q c
                         if let BackEvent::Key(KeyEvent {
                             code: KeyCode::Char('y'),
                             modifiers: KeyModifiers::NONE,
@@ -160,7 +169,9 @@ pub fn start<B>(
                         }) = evt
                         {
                             // not ideal, but works in a pinch
+                            // 向通道发送键盘按下事件
                             let _ = instruction_sender.send(Instruction::Keypress(evt));
+                            // 阻塞线程100毫秒
                             park_timeout(time::Duration::from_millis(100));
                             // if we don't wait, the app won't have time to quit
                             if !running.load(Ordering::Acquire) {
